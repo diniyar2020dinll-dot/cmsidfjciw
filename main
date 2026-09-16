@@ -1,0 +1,66 @@
+import asyncio
+import os
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import CommandStart
+from dotenv import load_dotenv
+
+load_dotenv()
+
+BOT_TOKEN = os.getenv("8757589167:AAFAvxiQHPYMZe3V5VUrdH1IzouzCqOZQWQ")
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
+
+@dp.message(CommandStart())
+async def start(message: types.Message):
+    await message.answer(
+        "发送或转发以下内容给我，我会返回对应的 ID：\n"
+        "• 普通贴纸\n"
+        "• Premium Emoji（包含它的文本消息）\n"
+        "• 照片"
+    )
+
+
+@dp.message()
+async def handle(message: types.Message):
+    results = []
+
+    # 1. 照片：取最大尺寸的 file_id
+    if message.photo:
+        results.append(f"📷 照片 file_id:\n`{message.photo[-1].file_id}`")
+
+    # 2. 贴纸：普通贴纸 / Premium 贴纸
+    if message.sticker:
+        s = message.sticker
+        results.append(f"🎨 贴纸 file_id:\n`{s.file_id}`")
+        # Premium 贴纸会有 premium_animation 字段
+        if s.premium_animation:
+            results.append(
+                f"✨ Premium 动画 file_id:\n`{s.premium_animation.file_id}`"
+            )
+        # 如果这个 sticker 本身是 custom emoji 格式
+        if s.custom_emoji_id:
+            results.append(
+                f"😀 Custom Emoji ID:\n`{s.custom_emoji_id}`"
+            )
+
+    # 3. Premium Emoji：从 message.entities 中提取
+    if message.entities:
+        for entity in message.entities:
+            if entity.type == "custom_emoji":
+                # entity.custom_emoji_id 就是 Premium Emoji 的 ID
+                results.append(
+                    f"😀 Premium Emoji ID:\n`{entity.custom_emoji_id}`"
+                )
+
+    if results:
+        await message.answer("\n\n".join(results), parse_mode="Markdown")
+    else:
+        await message.answer("未识别到支持的媒体类型，请发送照片、贴纸或含 Premium Emoji 的消息。")
+
+
+async def main():
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
